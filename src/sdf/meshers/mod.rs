@@ -7,11 +7,11 @@ use std::path::PathBuf;
 use clap::ValueHint;
 use tokio::sync::mpsc;
 
-use mesh::Mesh;
+pub use mesh::Mesh;
 
-use crate::sdf::SDFSurface;
 use crate::sdf::wasm::load;
 use crate::sdf::wasm::load::spawn_async;
+use crate::sdf::SDFSurface;
 
 mod mesh;
 
@@ -38,9 +38,13 @@ pub struct CliMesher {
 impl CliMesher {
     /// Runs the CLI for the mesher, using all the configured parameters.
     pub async fn run_cli(self) -> anyhow::Result<()> {
-        let output_is_stdout = self.output_file.to_str()
-            .map(|s| s.is_empty() || s.eq("-")).unwrap_or(false);
-        if output_is_stdout { // This if-else can't be merged because of async/await?
+        let output_is_stdout = self
+            .output_file
+            .to_str()
+            .map(|s| s.is_empty() || s.eq("-"))
+            .unwrap_or(false);
+        if output_is_stdout {
+            // This if-else can't be merged because of async/await?
             // Buffer writes for faster performance
             let f = io::stdout();
             let mut f = BufWriter::new(f);
@@ -67,19 +71,34 @@ impl CliMesher {
         // Start loading input SDF (using common code with the app)
         tracing::info!("Loading SDF from {:?}...", self.input);
         let (sender_of_updates, mut receiver_of_updates) = mpsc::channel(1);
-        spawn_async(async move { load::load_sdf_from_path_or_url(sender_of_updates, self.input.clone()) }, false);
+        spawn_async(
+            async move { load::load_sdf_from_path_or_url(sender_of_updates, self.input.clone()) },
+            false,
+        );
         // Wait for the loaded SDF to be ready
         let input_sdf = receiver_of_updates
-            .recv().await.ok_or_else(|| anyhow::anyhow!("No SDF found"))?
-            .recv().await.ok_or_else(|| anyhow::anyhow!("No SDF found"))?;
+            .recv()
+            .await
+            .ok_or_else(|| anyhow::anyhow!("No SDF found"))?
+            .recv()
+            .await
+            .ok_or_else(|| anyhow::anyhow!("No SDF found"))?;
         drop(receiver_of_updates);
         // Apply the meshing algorithm as configured
-        tracing::info!("Running the meshing algorithm with {:?} {:?}...", self.cfg, self.mesher);
+        tracing::info!(
+            "Running the meshing algorithm with {:?} {:?}...",
+            self.cfg,
+            self.mesher
+        );
         // TODO: Progress reporting + ETA?
         // TODO: Async for avoiding freezes on wasm32
         let mut mesh = self.mesher.mesh(&input_sdf, self.cfg);
         // Post-process the mesh to get the materials
-        tracing::info!("Post-processing the mesh ({} vertices, {} triangles)...", mesh.vertices.len(), mesh.indices.len() / 3);
+        tracing::info!(
+            "Post-processing the mesh ({} vertices, {} triangles)...",
+            mesh.vertices.len(),
+            mesh.indices.len() / 3
+        );
         mesh.postproc(&input_sdf);
         // Write the mesh to the output file or fail
         tracing::info!("Serializing output mesh...");
@@ -146,4 +165,3 @@ impl Mesher for Meshers {
         }
     }
 }
-

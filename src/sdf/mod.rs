@@ -90,7 +90,6 @@ pub trait SDFSurface {
 
     // ============ OPTIONAL: CUSTOM MATERIALS (GLSL CODE) ============
 
-
     // ============ OPTIONAL: UTILITIES ============
     /// Returns the normal at the given point.
     /// Default implementation is to approximate the normal from several samples.
@@ -121,7 +120,13 @@ impl SDFSample {
     /// Creates a new SDF sample using only distance and color. Use the struct initialization if you
     /// want to use other properties.
     pub fn new(distance: f32, color: Vector3<f32>) -> Self {
-        Self { distance, color, metallic: 0.0, roughness: 0.0, occlusion: 0.0 }
+        Self {
+            distance,
+            color,
+            metallic: 0.0,
+            roughness: 0.0,
+            occlusion: 0.0,
+        }
     }
 }
 
@@ -161,6 +166,7 @@ pub enum SDFParamKind {
         /// The available options to select from for the parameter. If empty, any string is valid.
         choices: Vec<String>,
     },
+    Path,
 }
 
 /// The type's value.
@@ -170,6 +176,7 @@ pub enum SDFParamValue {
     Int(i32),
     Float(f32),
     String(String),
+    LazyString { input_text: String, commited: bool },
 }
 
 #[cfg(feature = "app")]
@@ -177,47 +184,74 @@ impl SDFParam {
     /// Build the GUI for the parameter. Returns true if the value was changed.
     pub fn gui(&mut self, ui: &mut eframe::egui::Ui) -> bool {
         use eframe::egui;
-        use eframe::egui::Slider;
         use eframe::egui::util::hash;
-        ui.label(format!("{}:", self.name)).on_hover_text(&self.description);
+        use eframe::egui::Slider;
+        ui.label(format!("{}:", self.name))
+            .on_hover_text(&self.description);
         let changed = match &mut self.kind {
             SDFParamKind::Boolean => {
                 match &mut self.value {
-                    SDFParamValue::Boolean(value) =>
-                        ui.checkbox(value, value.to_string()).changed(),
+                    SDFParamValue::Boolean(value) => {
+                        ui.checkbox(value, value.to_string()).changed()
+                    }
                     _ => false, // Ignore invalid values
                 }
             }
             SDFParamKind::Int { range, step } => {
                 match &mut self.value {
-                    SDFParamValue::Int(value) =>
-                        ui.add(Slider::new(value, range.clone()).step_by(*step as f64)).changed(),
+                    SDFParamValue::Int(value) => ui
+                        .add(Slider::new(value, range.clone()).step_by(*step as f64))
+                        .changed(),
                     _ => false, // Ignore invalid values
                 }
             }
             SDFParamKind::Float { range, step } => {
                 match &mut self.value {
-                    SDFParamValue::Float(value) =>
-                        ui.add(Slider::new(value, range.clone()).step_by(*step as f64)).changed(),
+                    SDFParamValue::Float(value) => ui
+                        .add(Slider::new(value, range.clone()).step_by(*step as f64))
+                        .changed(),
                     _ => false, // Ignore invalid values
                 }
             }
             SDFParamKind::String { choices } => {
                 match &mut self.value {
-                    SDFParamValue::String(value) =>
+                    SDFParamValue::String(value) => {
                         if choices.is_empty() {
                             ui.text_edit_multiline(value).changed()
                         } else {
-                            let mut value_index = choices.iter().position(|x| x == value)
+                            let mut value_index = choices
+                                .iter()
+                                .position(|x| x == value)
                                 .expect("SdfParameterValue: value not in choices!");
-                            let changed = egui::ComboBox::new(hash(format!("sdf-param-{}", self.name)), value.clone())
-                                .show_index(ui, &mut value_index, choices.len(), |i| choices[i].clone())
-                                .changed();
+                            let changed = egui::ComboBox::new(
+                                hash(format!("sdf-param-{}", self.name)),
+                                value.clone(),
+                            )
+                            .show_index(ui, &mut value_index, choices.len(), |i| choices[i].clone())
+                            .changed();
                             if changed {
                                 *value = choices[value_index].clone();
                             }
                             changed
-                        },
+                        }
+                    }
+                    _ => false, // Ignore invalid values
+                }
+            }
+            SDFParamKind::Path => {
+                match &mut self.value {
+                    SDFParamValue::LazyString {
+                        input_text,
+                        commited,
+                    } => {
+                        let text_edit = &ui.text_edit_singleline(input_text);
+                        if text_edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                            *commited = true;
+                            true
+                        } else {
+                            text_edit.changed()
+                        }
+                    }
                     _ => false, // Ignore invalid values
                 }
             }
