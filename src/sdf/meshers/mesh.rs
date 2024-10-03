@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use cgmath::{MetricSpace, vec3, Vector3, Zero};
+use cgmath::{vec3, MetricSpace, Vector3, Zero};
 
 use crate::metadata::short_version_info;
 use crate::sdf::SDFSurface;
@@ -36,59 +36,63 @@ impl Mesh {
     /// It exports all mesh data, although some values may be in a non-standard format.
     #[cfg(feature = "ply-rs")]
     pub fn serialize_ply<T: Write>(&self, out: &mut T) -> std::io::Result<usize> {
-        use ply_rs::ply::{Ply, DefaultElement, Encoding, ElementDef, PropertyDef, PropertyType, ScalarType, Property, Addable};
-        use ply_rs::writer::{Writer};
+        use ply_rs::ply::{
+            Addable, DefaultElement, ElementDef, Encoding, Ply, Property, PropertyDef,
+            PropertyType, ScalarType,
+        };
+        use ply_rs::writer::Writer;
 
         // create a ply objet
         let mut ply = {
             let mut ply = Ply::<DefaultElement>::new();
             ply.header.encoding = Encoding::Ascii;
-            ply.header.comments.push(format!("Created with {}", short_version_info()));
+            ply.header
+                .comments
+                .push(format!("Created with {}", short_version_info()));
 
             // Define the elements we want to write.
             let mut vertex_el = ElementDef::new("vertex".to_string());
-            let p = PropertyDef::new("x".to_string(),
-                                     PropertyType::Scalar(ScalarType::Float));
+            let p = PropertyDef::new("x".to_string(), PropertyType::Scalar(ScalarType::Float));
             vertex_el.properties.add(p);
-            let p = PropertyDef::new("y".to_string(),
-                                     PropertyType::Scalar(ScalarType::Float));
+            let p = PropertyDef::new("y".to_string(), PropertyType::Scalar(ScalarType::Float));
             vertex_el.properties.add(p);
-            let p = PropertyDef::new("z".to_string(),
-                                     PropertyType::Scalar(ScalarType::Float));
+            let p = PropertyDef::new("z".to_string(), PropertyType::Scalar(ScalarType::Float));
             vertex_el.properties.add(p);
-            let p = PropertyDef::new("nx".to_string(),
-                                     PropertyType::Scalar(ScalarType::Float));
+            let p = PropertyDef::new("nx".to_string(), PropertyType::Scalar(ScalarType::Float));
             vertex_el.properties.add(p);
-            let p = PropertyDef::new("ny".to_string(),
-                                     PropertyType::Scalar(ScalarType::Float));
+            let p = PropertyDef::new("ny".to_string(), PropertyType::Scalar(ScalarType::Float));
             vertex_el.properties.add(p);
-            let p = PropertyDef::new("nz".to_string(),
-                                     PropertyType::Scalar(ScalarType::Float));
+            let p = PropertyDef::new("nz".to_string(), PropertyType::Scalar(ScalarType::Float));
             vertex_el.properties.add(p);
-            let p = PropertyDef::new("red".to_string(),
-                                     PropertyType::Scalar(ScalarType::UChar));
+            let p = PropertyDef::new("red".to_string(), PropertyType::Scalar(ScalarType::UChar));
             vertex_el.properties.add(p);
-            let p = PropertyDef::new("green".to_string(),
-                                     PropertyType::Scalar(ScalarType::UChar));
+            let p = PropertyDef::new("green".to_string(), PropertyType::Scalar(ScalarType::UChar));
             vertex_el.properties.add(p);
-            let p = PropertyDef::new("blue".to_string(),
-                                     PropertyType::Scalar(ScalarType::UChar));
+            let p = PropertyDef::new("blue".to_string(), PropertyType::Scalar(ScalarType::UChar));
             vertex_el.properties.add(p);
-            let p = PropertyDef::new("metallic".to_string(),
-                                     PropertyType::Scalar(ScalarType::Float));
+            let p = PropertyDef::new(
+                "metallic".to_string(),
+                PropertyType::Scalar(ScalarType::Float),
+            );
             vertex_el.properties.add(p);
-            let p = PropertyDef::new("roughness".to_string(),
-                                     PropertyType::Scalar(ScalarType::Float));
+            let p = PropertyDef::new(
+                "roughness".to_string(),
+                PropertyType::Scalar(ScalarType::Float),
+            );
             vertex_el.properties.add(p);
-            let p = PropertyDef::new("occlusion".to_string(),
-                                     PropertyType::Scalar(ScalarType::Float));
+            let p = PropertyDef::new(
+                "occlusion".to_string(),
+                PropertyType::Scalar(ScalarType::Float),
+            );
             vertex_el.properties.add(p);
             let vertex_el_properties_len = vertex_el.properties.len();
             ply.header.elements.add(vertex_el);
 
             let mut face_el = ElementDef::new("face".to_string());
-            let p = PropertyDef::new("vertex_index".to_string(),
-                                     PropertyType::List(ScalarType::UChar, ScalarType::Int));
+            let p = PropertyDef::new(
+                "vertex_index".to_string(),
+                PropertyType::List(ScalarType::UChar, ScalarType::Int),
+            );
             face_el.properties.add(p);
             let face_el_properties_len = face_el.properties.len();
             ply.header.elements.add(face_el);
@@ -103,9 +107,18 @@ impl Mesh {
                 vertex.insert("nx".to_string(), Property::Float(v.normal[0]));
                 vertex.insert("ny".to_string(), Property::Float(v.normal[1]));
                 vertex.insert("nz".to_string(), Property::Float(v.normal[2]));
-                vertex.insert("red".to_string(), Property::UChar((v.color[0] * 255.9999) as u8));
-                vertex.insert("green".to_string(), Property::UChar((v.color[1] * 255.9999) as u8));
-                vertex.insert("blue".to_string(), Property::UChar((v.color[2] * 255.9999) as u8));
+                vertex.insert(
+                    "red".to_string(),
+                    Property::UChar((v.color[0] * 255.9999) as u8),
+                );
+                vertex.insert(
+                    "green".to_string(),
+                    Property::UChar((v.color[1] * 255.9999) as u8),
+                );
+                vertex.insert(
+                    "blue".to_string(),
+                    Property::UChar((v.color[2] * 255.9999) as u8),
+                );
                 vertex.insert("metallic".to_string(), Property::Float(v.metallic));
                 vertex.insert("roughness".to_string(), Property::Float(v.roughness));
                 vertex.insert("occlusion".to_string(), Property::Float(v.occlusion));
@@ -115,7 +128,10 @@ impl Mesh {
             let mut faces = Vec::with_capacity(self.indices.len() / 3);
             for v in self.indices.as_slice().chunks_exact(3) {
                 let mut face = DefaultElement::with_capacity(face_el_properties_len);
-                face.insert("vertex_index".to_string(), Property::ListInt(v.iter().map(|e| *e as i32).collect()));
+                face.insert(
+                    "vertex_index".to_string(),
+                    Property::ListInt(v.iter().map(|e| *e as i32).collect()),
+                );
                 faces.push(face);
             }
             ply.payload.insert("face".to_string(), faces);
@@ -152,4 +168,3 @@ impl Default for Vertex {
         }
     }
 }
-
